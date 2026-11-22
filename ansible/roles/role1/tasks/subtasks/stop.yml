@@ -1,0 +1,5 @@
+---
+- name: Остановить микросервисы (docker compose down)
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_dir }}"
+    state: absent

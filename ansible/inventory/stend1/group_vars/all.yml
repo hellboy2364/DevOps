@@ -1,0 +1,8 @@
+github_user: hellboy2364
+
+app_dir: /opt/app
+git_ref: main
+
+backend_r: "https://github.com/{{ github_user }}/backend.git"
+frontend_r: "https://github.com/{{ github_user }}/frontend.git"
+devops_r: "https://github.com/{{ github_user }}/DevOps.git"

@@ -1,0 +1,83 @@
+---
+- name: Установить git и вспомогательные пакеты
+  ansible.builtin.apt:
+    name:
+      - git
+      - curl
+      - ca-certificates
+    state: present
+    update_cache: true
+    lock_timeout: 300
+  tags: [deploy]
+
+- name: Создать каталог для ключей apt
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  tags: [deploy]
+
+- name: Скачать GPG-ключ репозитория Docker
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+  tags: [deploy]
+
+- name: Добавить репозиторий Docker
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ 'arm64' if ansible_facts["architecture"] == 'aarch64' else 'amd64' }}
+      signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/ubuntu {{ ansible_facts["distribution_release"] }} stable
+    filename: docker
+    state: present
+  tags: [deploy]
+
+- name: Установить Docker Engine и Docker Compose
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: true
+    lock_timeout: 300
+  notify: Включить и запустить Docker
+  tags: [deploy]
+
+- name: Создать каталог для приложения
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    mode: "0755"
+  tags: [deploy]
+
+- name: Склонировать репозиторий backend
+  ansible.builtin.git:
+    repo: "{{ backend_r }}"
+    dest: "{{ app_dir }}/backend"
+    version: "{{ git_ref }}"
+  tags: [deploy]
+
+- name: Склонировать репозиторий frontend
+  ansible.builtin.git:
+    repo: "{{ frontend_r }}"
+    dest: "{{ app_dir }}/frontend"
+    version: "{{ git_ref }}"
+  tags: [deploy]
+
+- name: Склонировать репозиторий DevOps
+  ansible.builtin.git:
+    repo: "{{ devops_r }}"
+    dest: "{{ app_dir }}/DevOps"
+    version: "{{ git_ref }}"
+  tags: [deploy]
+
+- name: Запустить микросервисы (docker compose up --build)
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_dir }}"
+    state: present
+    build: always
+  tags: [start]
+
+- name: Подключить задачи остановки
+  ansible.builtin.import_tasks: subtasks/stop.yml
+  tags: [stop, never]
